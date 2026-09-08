@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>Boi Bravo — Monte seu pedido</title>
+<title>Bom Bravo — Monte seu pedido</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -334,6 +334,24 @@
   .cm-empty{text-align:center; padding:50px 20px; color:var(--ink-dim); font-size:14px;}
 
   .cm-footer{padding:16px 20px 22px; border-top:1px solid var(--line);}
+  .cm-coupon-row{display:flex; gap:8px; margin-bottom:8px;}
+  .cm-coupon-row input{
+    flex:1; border:1px solid var(--line); background:var(--bg-raised); color:var(--ink);
+    font-family:inherit; font-size:14px; border-radius:10px; padding:10px 13px; outline:none;
+    text-transform:uppercase;
+  }
+  .cm-coupon-row input:focus{border-color:var(--red);}
+  .cm-coupon-row input::placeholder{color:var(--ink-dim); text-transform:none;}
+  .cm-coupon-row input:disabled{opacity:.6;}
+  .cm-coupon-row button{
+    flex:none; border:1px solid var(--brass-dim); background:transparent; color:var(--brass);
+    font-family:inherit; font-weight:600; font-size:13px; border-radius:10px; padding:0 16px; cursor:pointer;
+    transition:.15s ease;
+  }
+  .cm-coupon-row button:hover{background:rgba(199,160,74,.12);}
+  .cm-coupon-msg{font-size:12.5px; margin-bottom:10px; min-height:1px;}
+  .cm-coupon-msg.success{color:var(--brass);}
+  .cm-coupon-msg.error{color:var(--red-bright);}
   .cm-total-row{
     display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;
   }
@@ -368,8 +386,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <div class="topbar-brand">
-      <img class="logo-inject" alt="Boi Bravo">
-      <span class="tb-name">Boi Bravo</span>
+      <img class="logo-inject" alt="Bom Bravo">
+      <span class="tb-name">Bom Bravo</span>
     </div>
     <button class="icon-btn" id="searchBtn" aria-label="Buscar item">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -387,9 +405,9 @@
 
   <aside class="drawer" id="drawer">
     <div class="drawer-head">
-      <img class="logo-inject" alt="Boi Bravo">
+      <img class="logo-inject" alt="Bom Bravo">
       <div>
-        <div class="dh-title">Boi Bravo</div>
+        <div class="dh-title">Bom Bravo</div>
         <div class="dh-sub">CASA DE CARNES</div>
       </div>
     </div>
@@ -397,8 +415,8 @@
   </aside>
 
   <section class="hero">
-    <img class="logo-inject" alt="Boi Bravo">
-    <h1>Boi Bravo</h1>
+    <img class="logo-inject" alt="Bom Bravo">
+    <h1>Bom Bravo</h1>
     <p class="tagline">Escolha os cortes e produtos, monte seu pedido e envie direto para o WhatsApp do açougue — sem fila, sem espera.</p>
     <div class="hero-search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -436,6 +454,13 @@
     </div>
     <div class="cm-list" id="cmList"></div>
     <div class="cm-footer">
+      <div class="cm-coupon-row">
+        <input type="text" id="couponInput" placeholder="Cupom de desconto">
+        <button type="button" id="couponBtn">Aplicar</button>
+      </div>
+      <div class="cm-coupon-msg" id="couponMsg"></div>
+      <div class="cm-total-row" id="subtotalRow" style="display:none;"><span>Subtotal</span><span id="cmSubtotal">R$ 0,00</span></div>
+      <div class="cm-total-row" id="discountRow" style="display:none;"><span>Desconto</span><span id="cmDiscount">-R$ 0,00</span></div>
       <div class="cm-total-row"><span>Total</span><span id="cmTotal">R$ 0,00</span></div>
       <button class="btn-send" id="btnSend">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l1.65-6.6A9 9 0 1 1 8.6 20.35L2 21zm7-13a1 1 0 0 0-1 1v.5a5.5 5.5 0 0 0 5.5 5.5h.5a1 1 0 0 0 1-1v-.7a.5.5 0 0 0-.35-.48l-1.7-.5a.5.5 0 0 0-.5.13l-.4.4a4 4 0 0 1-2-2l.4-.4a.5.5 0 0 0 .13-.5l-.5-1.7A.5.5 0 0 0 9.7 8H9z"/></svg>
@@ -587,6 +612,52 @@
     return { items: itemsSorted, categories: catOrder };
   }
 
+  // ============================================================
+  // CUPONS — lidos da aba "Cupom" da planilha (ou do fallback salvo)
+  // ============================================================
+  const COUPONS_FALLBACK = [
+    { code: 'TESTE', pct: 10, regra: '>120' }
+  ];
+
+  function getField(row, name){
+    const keys = Object.keys(row);
+    const match = keys.find(k=>k.trim().toUpperCase() === name.toUpperCase());
+    return match !== undefined ? row[match] : undefined;
+  }
+
+  function parseCouponRows(rows){
+    return rows.map(r=>{
+      const code = String(getField(r,'cupom') || '').trim();
+      const discStr = String(getField(r,'desconto') || '').trim();
+      const pct = parseFloat(discStr.replace('%','').replace(',','.')) || 0;
+      const regra = String(getField(r,'REGRA') || '').trim();
+      return { code, pct, regra };
+    }).filter(c=>c.code && c.pct>0);
+  }
+
+  // ">120" -> só vale se o total for maior que 120. "0" ou vazio -> vale sempre.
+  function evalCouponRule(regra, total){
+    regra = String(regra||'').trim();
+    if(!regra || regra === '0') return true;
+    const m = regra.match(/^(>=|<=|>|<|=)?\s*([\d.,]+)$/);
+    if(!m) return true; // formato não reconhecido, não bloqueia
+    const op = m[1] || '>=';
+    const val = parseFloat(m[2].replace(',','.'));
+    switch(op){
+      case '>': return total > val;
+      case '>=': return total >= val;
+      case '<': return total < val;
+      case '<=': return total <= val;
+      case '=': return total === val;
+      default: return total >= val;
+    }
+  }
+
+  function couponMinValue(regra){
+    const m = String(regra||'').match(/([\d.,]+)/);
+    return m ? parseFloat(m[1].replace(',','.')) : 0;
+  }
+
   async function loadCatalog(){
     if(SHEET_API_URL){
       try{
@@ -595,23 +666,33 @@
         const res = await fetch(SHEET_API_URL, {signal: controller.signal, cache: 'no-store'});
         clearTimeout(timer);
         if(!res.ok) throw new Error('HTTP '+res.status);
-        const rows = await res.json();
-        const built = buildCatalogFromRows(rows);
+        const data = await res.json();
+        // aceita tanto o formato antigo (array simples de itens) quanto o
+        // novo ({items:[...], coupons:[...]}), pra nunca quebrar se o
+        // Apps Script ainda não tiver sido atualizado com a aba de cupons.
+        const rawItems = Array.isArray(data) ? data : (data.items || []);
+        const rawCoupons = Array.isArray(data) ? [] : (data.coupons || []);
+        const built = buildCatalogFromRows(rawItems);
+        const coupons = parseCouponRows(rawCoupons);
         if(built.items.length){
-          return built;
+          return { items: built.items, categories: built.categories, coupons: coupons.length ? coupons : COUPONS_FALLBACK.slice() };
         }
         throw new Error('planilha retornou 0 itens válidos');
       }catch(err){
-        console.warn('[Boi Bravo] Não consegui buscar a planilha ao vivo, usando catálogo salvo. Motivo:', err);
+        console.warn('[Bom Bravo] Não consegui buscar a planilha ao vivo, usando catálogo salvo. Motivo:', err);
       }
     }
-    return { items: ITEMS_FALLBACK.slice(), categories: CATEGORIES_FALLBACK.slice() };
+    return { items: ITEMS_FALLBACK.slice(), categories: CATEGORIES_FALLBACK.slice(), coupons: COUPONS_FALLBACK.slice() };
   }
 
   // preenchidos assim que o catálogo (ao vivo ou fallback) estiver pronto
   let ITEMS = [];
   let CATEGORIES = [];
   let byCategory = {};
+  let COUPONS = [];
+  let appliedCoupon = null;
+  let couponMessage = '';
+  let couponMessageType = '';
 
   const cart = {}; // id -> qty
 
@@ -770,19 +851,50 @@
 
   /* ---------- cart modal ---------- */
   const cmList = document.getElementById('cmList');
+
+  function getSubtotal(){
+    return Object.keys(cart).reduce((s,id)=>{
+      const it = ITEMS.find(x=>x.id===id);
+      return s + it.price*cart[id];
+    }, 0);
+  }
+
+  // se o carrinho mudou e o cupom aplicado não vale mais (ex: caiu abaixo do mínimo), remove e avisa
+  function revalidateCoupon(subtotal){
+    if(appliedCoupon && !evalCouponRule(appliedCoupon.regra, subtotal)){
+      const min = couponMinValue(appliedCoupon.regra);
+      couponMessage = 'O cupom '+appliedCoupon.code+' foi removido: o pedido ficou abaixo do mínimo de '+fmtBRL(min)+'.';
+      couponMessageType = 'error';
+      appliedCoupon = null;
+    }
+  }
+
+  function renderCouponUI(){
+    const msgEl = document.getElementById('couponMsg');
+    msgEl.textContent = couponMessage;
+    msgEl.className = 'cm-coupon-msg ' + couponMessageType;
+    const input = document.getElementById('couponInput');
+    const btn = document.getElementById('couponBtn');
+    input.disabled = !!appliedCoupon;
+    btn.textContent = appliedCoupon ? 'Remover' : 'Aplicar';
+  }
+
   function renderCartModal(){
     const ids = Object.keys(cart);
     if(!ids.length){
       cmList.innerHTML = '<div class="cm-empty">Seu pedido está vazio.<br>Toque em “+” em um item para adicionar.</div>';
+      document.getElementById('cmSubtotal').textContent = fmtBRL(0);
+      document.getElementById('cmDiscount').textContent = fmtBRL(0);
       document.getElementById('cmTotal').textContent = fmtBRL(0);
+      document.getElementById('subtotalRow').style.display = 'none';
+      document.getElementById('discountRow').style.display = 'none';
+      renderCouponUI();
       return;
     }
-    let total = 0;
     cmList.innerHTML = ids.map(id=>{
       const it = ITEMS.find(x=>x.id===id);
       const qty = cart[id];
       const sub = it.price*qty;
-      total += sub;
       const thumb = it.image ? '<img class="cmi-thumb" src="'+it.image+'" alt="'+it.name+'">' : '';
       return '<div class="cm-item">'+
         thumb +
@@ -793,13 +905,58 @@
         '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'+
       '</div>';
     }).join('');
+
+    const subtotal = getSubtotal();
+    revalidateCoupon(subtotal);
+    const discount = appliedCoupon ? subtotal * (appliedCoupon.pct/100) : 0;
+    const total = subtotal - discount;
+
+    document.getElementById('cmSubtotal').textContent = fmtBRL(subtotal);
+    document.getElementById('cmDiscount').textContent = '-'+fmtBRL(discount);
     document.getElementById('cmTotal').textContent = fmtBRL(total);
+    document.getElementById('subtotalRow').style.display = appliedCoupon ? '' : 'none';
+    document.getElementById('discountRow').style.display = appliedCoupon ? '' : 'none';
+    renderCouponUI();
   }
 
   cmList.addEventListener('click', e=>{
     const btn = e.target.closest('.cmi-remove');
     if(!btn) return;
     setQty(btn.dataset.id, 0);
+  });
+
+  /* ---------- cupom ---------- */
+  document.getElementById('couponBtn').addEventListener('click', ()=>{
+    if(appliedCoupon){
+      appliedCoupon = null;
+      couponMessage = '';
+      couponMessageType = '';
+      document.getElementById('couponInput').value = '';
+      renderCartModal();
+      return;
+    }
+    const code = document.getElementById('couponInput').value.trim();
+    if(!code) return;
+    const found = COUPONS.find(c=>c.code.toUpperCase()===code.toUpperCase());
+    if(!found){
+      couponMessage = 'Cupom inválido.';
+      couponMessageType = 'error';
+      renderCouponUI();
+      return;
+    }
+    const subtotal = getSubtotal();
+    if(!evalCouponRule(found.regra, subtotal)){
+      const min = couponMinValue(found.regra);
+      const falta = Math.max(min - subtotal, 0);
+      couponMessage = 'Esse cupom exige compra mínima de '+fmtBRL(min)+'. Faltam '+fmtBRL(falta)+'.';
+      couponMessageType = 'error';
+      renderCouponUI();
+      return;
+    }
+    appliedCoupon = found;
+    couponMessage = 'Cupom '+found.code+' aplicado: -'+found.pct+'% de desconto';
+    couponMessageType = 'success';
+    renderCartModal();
   });
 
   /* ---------- open/close cart modal ---------- */
@@ -818,18 +975,26 @@
   document.getElementById('btnSend').addEventListener('click', ()=>{
     const ids = Object.keys(cart);
     if(!ids.length) return;
-    let total = 0;
-    const lines = ['*Pedido — Boi Bravo Casa de Carnes*',''];
 
+    const lines = ['*Pedido — Bom Bravo Casa de Carnes*',''];
     ids.forEach(id=>{
       const it = ITEMS.find(x=>x.id===id);
       const qty = cart[id];
       const sub = it.price*qty;
-      total += sub;
       lines.push('- '+it.name+' — '+fmtQty(qty,it.unit)+' — '+fmtBRL(sub));
     });
     lines.push('');
-    lines.push('*Total: '+fmtBRL(total)+'*');
+
+    const subtotal = getSubtotal();
+    revalidateCoupon(subtotal); // garante que não manda um cupom que já ficou inválido
+    if(appliedCoupon){
+      const discount = subtotal * (appliedCoupon.pct/100);
+      lines.push('Subtotal: '+fmtBRL(subtotal));
+      lines.push('Cupom '+appliedCoupon.code+' (-'+appliedCoupon.pct+'%): -'+fmtBRL(discount));
+      lines.push('*Total: '+fmtBRL(subtotal-discount)+'*');
+    } else {
+      lines.push('*Total: '+fmtBRL(subtotal)+'*');
+    }
 
     const notes = custNotes.value.trim();
     if(notes){ lines.push(''); lines.push('Observações: '+notes); }
@@ -937,6 +1102,7 @@
     const catalog = await loadCatalog();
     ITEMS = catalog.items;
     CATEGORIES = catalog.categories;
+    COUPONS = catalog.coupons || [];
     ITEMS.forEach((it,i)=>{
       it.id = 'i'+i;
       if(PRODUCT_IMAGES[it.name]) it.image = PRODUCT_IMAGES[it.name];
