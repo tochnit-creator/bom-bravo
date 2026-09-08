@@ -309,6 +309,12 @@
   .cm-head h2{font-family:'Fraunces',serif; font-size:19px; font-weight:700;}
 
   .cm-fields{padding:14px 20px 6px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:10px;}
+  .cm-prep-banner{
+    margin:14px 20px 0; padding:10px 14px; border-radius:10px;
+    background:rgba(199,160,74,.1); border:1px solid var(--brass-dim);
+    color:var(--brass); font-size:12.5px; display:flex; align-items:center; gap:8px; line-height:1.4;
+  }
+  .cm-prep-banner svg{width:15px; height:15px; flex:none;}
   .cm-fields input, .cm-fields textarea{
     width:100%; border:1px solid var(--line); background:var(--bg-raised);
     color:var(--ink); font-family:inherit; font-size:14px; border-radius:10px;
@@ -449,6 +455,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
+    <div class="cm-prep-banner" id="prepBanner" style="display:none;"></div>
     <div class="cm-fields">
       <textarea id="custNotes" placeholder="Observações (opcional) — ex: cortar em cubos, sem osso" rows="2"></textarea>
     </div>
@@ -658,6 +665,31 @@
     return m ? parseFloat(m[1].replace(',','.')) : 0;
   }
 
+  // TEMPO = quantas horas depois do pedido o cliente pode retirar.
+  // É uma config geral da loja (não do cupom específico), lida da mesma aba;
+  // usa o primeiro valor de TEMPO que aparecer em qualquer linha.
+  const PREP_TIME_FALLBACK = 3;
+
+  function parsePrepTime(rows){
+    for(const r of rows){
+      const v = getField(r, 'TEMPO');
+      if(v !== undefined && v !== null && String(v).trim() !== ''){
+        const n = parseFloat(String(v).replace(',','.'));
+        if(!isNaN(n)) return n;
+      }
+    }
+    return null;
+  }
+
+  function formatPickupTime(hours){
+    if(hours === null || hours === undefined || isNaN(hours)) return null;
+    const now = new Date();
+    const pickup = new Date(now.getTime() + hours*60*60*1000);
+    const timeStr = pickup.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const crossesDay = pickup.getDate() !== now.getDate() || pickup.getMonth() !== now.getMonth();
+    return timeStr + (crossesDay ? ' (amanhã)' : '');
+  }
+
   async function loadCatalog(){
     if(SHEET_API_URL){
       try{
@@ -674,15 +706,21 @@
         const rawCoupons = Array.isArray(data) ? [] : (data.coupons || []);
         const built = buildCatalogFromRows(rawItems);
         const coupons = parseCouponRows(rawCoupons);
+        const prepTime = parsePrepTime(rawCoupons);
         if(built.items.length){
-          return { items: built.items, categories: built.categories, coupons: coupons.length ? coupons : COUPONS_FALLBACK.slice() };
+          return {
+            items: built.items,
+            categories: built.categories,
+            coupons: coupons.length ? coupons : COUPONS_FALLBACK.slice(),
+            prepTimeHours: prepTime !== null ? prepTime : PREP_TIME_FALLBACK
+          };
         }
         throw new Error('planilha retornou 0 itens válidos');
       }catch(err){
         console.warn('[Bom Bravo] Não consegui buscar a planilha ao vivo, usando catálogo salvo. Motivo:', err);
       }
     }
-    return { items: ITEMS_FALLBACK.slice(), categories: CATEGORIES_FALLBACK.slice(), coupons: COUPONS_FALLBACK.slice() };
+    return { items: ITEMS_FALLBACK.slice(), categories: CATEGORIES_FALLBACK.slice(), coupons: COUPONS_FALLBACK.slice(), prepTimeHours: PREP_TIME_FALLBACK };
   }
 
   // preenchidos assim que o catálogo (ao vivo ou fallback) estiver pronto
@@ -690,6 +728,7 @@
   let CATEGORIES = [];
   let byCategory = {};
   let COUPONS = [];
+  let PREP_TIME_HOURS = null;
   let appliedCoupon = null;
   let couponMessage = '';
   let couponMessageType = '';
@@ -879,7 +918,22 @@
     btn.textContent = appliedCoupon ? 'Remover' : 'Aplicar';
   }
 
+  const CLOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>';
+
+  function renderPrepBanner(){
+    const banner = document.getElementById('prepBanner');
+    if(PREP_TIME_HOURS === null || PREP_TIME_HOURS === undefined){
+      banner.style.display = 'none';
+      return;
+    }
+    const pickup = formatPickupTime(PREP_TIME_HOURS);
+    const hoursLabel = (PREP_TIME_HOURS % 1 === 0) ? PREP_TIME_HOURS : PREP_TIME_HOURS.toString().replace('.',',');
+    banner.innerHTML = CLOCK_SVG + '<span>Pedidos feitos agora ficam prontos para retirada em aprox. '+hoursLabel+'h — por volta das '+pickup+'.</span>';
+    banner.style.display = 'flex';
+  }
+
   function renderCartModal(){
+    renderPrepBanner();
     const ids = Object.keys(cart);
     if(!ids.length){
       cmList.innerHTML = '<div class="cm-empty">Seu pedido está vazio.<br>Toque em “+” em um item para adicionar.</div>';
@@ -996,6 +1050,12 @@
       lines.push('*Total: '+fmtBRL(subtotal)+'*');
     }
 
+    if(PREP_TIME_HOURS !== null){
+      const pickup = formatPickupTime(PREP_TIME_HOURS);
+      lines.push('');
+      lines.push('Previsão de retirada: por volta das '+pickup+' (aprox. '+PREP_TIME_HOURS+'h).');
+    }
+
     const notes = custNotes.value.trim();
     if(notes){ lines.push(''); lines.push('Observações: '+notes); }
 
@@ -1103,6 +1163,7 @@
     ITEMS = catalog.items;
     CATEGORIES = catalog.categories;
     COUPONS = catalog.coupons || [];
+    PREP_TIME_HOURS = (typeof catalog.prepTimeHours === 'number') ? catalog.prepTimeHours : null;
     ITEMS.forEach((it,i)=>{
       it.id = 'i'+i;
       if(PRODUCT_IMAGES[it.name]) it.image = PRODUCT_IMAGES[it.name];
